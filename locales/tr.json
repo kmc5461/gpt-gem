@@ -1,0 +1,42 @@
+{
+  "common": {
+    "siteName": "ARCHETYPE.",
+    "shopNow": "Alışverişe Başla",
+    "addToCart": "Sepete Ekle",
+    "viewDetails": "İncele",
+    "language": "Dil"
+  },
+  "header": {
+    "home": "Ana Sayfa",
+    "products": "Koleksiyon",
+    "about": "Hakkımızda",
+    "contact": "İletişim",
+    "login": "Giriş Yap",
+    "logout": "Çıkış Yap"
+  },
+  "footer": {
+    "rights": "Tüm hakları saklıdır.",
+    "privacy": "Gizlilik Politikası",
+    "terms": "Kullanım Koşulları"
+  },
+  "home": {
+    "heroTitle": "YENİ SEZON",
+    "heroSubtitle": "Minimalist lüks, yeniden tanımlandı.",
+    "featuredProducts": "Öne Çıkanlar",
+    "newArrivals": "Yeni Gelenler"
+  },
+  "about": {
+    "title": "Hikayemiz",
+    "description": "İstanbul'da tasarlanan, global vizyonla üretilen modern sokak giyimi.",
+    "mission": "Kaliteden ödün vermeden sürdürülebilir lüks sunmak.",
+    "vision": "Geleceğin giyim kültürüne yön vermek."
+  },
+  "contact": {
+    "title": "Bize Ulaşın",
+    "description": "Sorularınız için her zaman buradayız.",
+    "formName": "Adınız Soyadınız",
+    "formEmail": "E-posta Adresiniz",
+    "formMessage": "Mesajınız",
+    "formSubmit": "Gönder"
+  }
+}
