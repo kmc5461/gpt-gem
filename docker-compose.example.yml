@@ -1,0 +1,74 @@
+# docker-compose.example.yml
+version: '3.8'
+
+services:
+  # --- Veritabanı ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: archetype-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: archetype_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # --- Cache ---
+  redis:
+    image: redis:alpine
+    container_name: archetype-redis
+    ports:
+      - "6379:6379"
+
+  # --- Mikroservisler ---
+  product-service:
+    build:
+      context: ./microservices/product-service
+      dockerfile: Dockerfile
+    container_name: archetype-product-service
+    ports:
+      - "50051:50051"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/archetype_db?schema=public"
+      PORT: 50051
+    depends_on:
+      - postgres
+
+  order-service:
+    build:
+      context: ./microservices/order-service
+      dockerfile: Dockerfile
+    container_name: archetype-order-service
+    ports:
+      - "50052:50052"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/archetype_db?schema=public"
+      PORT: 50052
+    depends_on:
+      - postgres
+
+  # --- Web Uygulaması (Next.js) ---
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: archetype-web
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/archetype_db?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      GRPC_PRODUCT_SERVICE: "product-service:50051"
+      GRPC_ORDER_SERVICE: "order-service:50052"
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXTAUTH_SECRET: "dev_secret_key"
+    depends_on:
+      - postgres
+      - redis
+      - product-service
+      - order-service
+
+volumes:
+  postgres_data:
