@@ -1,0 +1,42 @@
+{
+  "common": {
+    "siteName": "ARCHETYPE.",
+    "shopNow": "Shop Now",
+    "addToCart": "Add to Cart",
+    "viewDetails": "View Details",
+    "language": "Language"
+  },
+  "header": {
+    "home": "Home",
+    "products": "Collection",
+    "about": "About",
+    "contact": "Contact",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "footer": {
+    "rights": "All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  },
+  "home": {
+    "heroTitle": "NEW SEASON",
+    "heroSubtitle": "Minimalist luxury, redefined.",
+    "featuredProducts": "Featured",
+    "newArrivals": "New Arrivals"
+  },
+  "about": {
+    "title": "Our Story",
+    "description": "Modern streetwear engineered in Istanbul with a global vision.",
+    "mission": "To provide sustainable luxury without compromising quality.",
+    "vision": "To shape the future culture of clothing."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "description": "We are here to help with any questions.",
+    "formName": "Full Name",
+    "formEmail": "Email Address",
+    "formMessage": "Your Message",
+    "formSubmit": "Submit"
+  }
+}
