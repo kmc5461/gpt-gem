@@ -1,4 +1,4 @@
-// app/api/auth/[...nextauth]/route.ts
+// /app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyTwoFactorToken } from "@/lib/auth/2fa";
 
-const loginAttempts = new Map<string, { count: number, lastAttempt: number }>();
+// Basit in-memory rate limit
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
@@ -19,49 +20,70 @@ export const authOptions = {
   pages: {
     signIn: "/login",
     error: "/auth/error",
+    verifyRequest: "/auth/verify",
   },
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        code: { label: "2FA Code", type: "text" },
+        email: {},
+        password: {},
+        code: {},
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email veya şifre eksik.");
+          throw new Error("Lütfen email ve şifre giriniz.");
         }
 
         const email = credentials.email;
         const now = Date.now();
 
-        const rec = loginAttempts.get(email) || { count: 0, lastAttempt: now };
-        if (rec.count >= MAX_ATTEMPTS && now - rec.lastAttempt < RATE_LIMIT_WINDOW) {
-          throw new Error("Çok fazla deneme. 15 dk bekleyin.");
+        const record =
+          loginAttempts.get(email) || { count: 0, lastAttempt: now };
+
+        if (
+          record.count >= MAX_ATTEMPTS &&
+          now - record.lastAttempt < RATE_LIMIT_WINDOW
+        ) {
+          throw new Error("Çok fazla deneme! 15 dakika bekleyin.");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user || !user.passwordHash) {
           await bcrypt.compare("dummy", "$2a$10$dummyhashdummyhashdummyhash");
-          loginAttempts.set(email, { count: rec.count + 1, lastAttempt: now });
-          throw new Error("Email veya şifre hatalı.");
+          loginAttempts.set(email, {
+            count: record.count + 1,
+            lastAttempt: now,
+          });
+          throw new Error("Email veya şifre yanlış.");
         }
 
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) {
-          loginAttempts.set(email, { count: rec.count + 1, lastAttempt: now });
-          throw new Error("Email veya şifre hatalı.");
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash
+        );
+
+        if (!isValid) {
+          loginAttempts.set(email, {
+            count: record.count + 1,
+            lastAttempt: now,
+          });
+          throw new Error("Email veya şifre yanlış.");
         }
 
+        // 2FA
         if (user.twoFactorEnabled) {
           if (!credentials.code) {
             throw new Error("2FA_REQUIRED");
           }
-          if (!verifyTwoFactorToken(credentials.code, user.twoFactorSecret!)) {
+
+          const is2FAValid = verifyTwoFactorToken(
+            credentials.code,
+            user.twoFactorSecret || ""
+          );
+
+          if (!is2FAValid) {
             throw new Error("2FA kodu hatalı.");
           }
         }
@@ -95,5 +117,6 @@ export const authOptions = {
   },
 };
 
+// NextAuth handler — SADECE BUNLAR EXPORT EDİLİR!
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
