@@ -1,17 +1,17 @@
-// Sunucu tarafında çalışan ve cookie okuyan fonksiyonlar
-import { cookies } from 'next/headers';
-import { Locale, i18n } from '@/lib/i18n';
+// /lib/i18n-server.ts
 
-const COOKIE_NAME = 'lang';
+import { Locale, i18n } from "@/lib/i18n";
 
-export async function getLocale(): Promise<Locale> {
-  const cookieStore = cookies();
-  const lang = cookieStore.get(COOKIE_NAME)?.value;
-
-  // Cookie'deki dil geçerli mi kontrol et, değilse varsayılanı dön
-  if (lang && i18n.locales.includes(lang as Locale)) {
-    return lang as Locale;
+/**
+ * Sunucu tarafında dictionary (çeviri dosyalarını) dinamik import eder
+ */
+export async function getDictionary(locale: Locale) {
+  try {
+    const dict = await import(`@/dictionaries/${locale}.json`);
+    return dict.default;
+  } catch (error) {
+    console.error("Dictionary load error:", error);
+    const fallback = await import(`@/dictionaries/${i18n.defaultLocale}.json`);
+    return fallback.default;
   }
-
-  return i18n.defaultLocale;
 }
