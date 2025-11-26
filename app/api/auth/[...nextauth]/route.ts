@@ -1,6 +1,5 @@
 // app/api/auth/[...nextauth]/route.ts
-
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +10,7 @@ const loginAttempts = new Map<string, { count: number, lastAttempt: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
@@ -20,7 +19,6 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
     error: "/auth/error",
-    verifyRequest: "/auth/verify",
   },
   providers: [
     CredentialsProvider({
@@ -32,28 +30,30 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Lütfen email ve şifre giriniz.");
+          throw new Error("Email veya şifre eksik.");
         }
 
         const email = credentials.email;
         const now = Date.now();
 
-        const record = loginAttempts.get(email) || { count: 0, lastAttempt: now };
-        if (record.count >= MAX_ATTEMPTS && now - record.lastAttempt < RATE_LIMIT_WINDOW) {
-          throw new Error("Çok fazla deneme yaptınız. Lütfen 15 dakika bekleyin.");
+        const rec = loginAttempts.get(email) || { count: 0, lastAttempt: now };
+        if (rec.count >= MAX_ATTEMPTS && now - rec.lastAttempt < RATE_LIMIT_WINDOW) {
+          throw new Error("Çok fazla deneme. 15 dk bekleyin.");
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({
+          where: { email },
+        });
 
         if (!user || !user.passwordHash) {
           await bcrypt.compare("dummy", "$2a$10$dummyhashdummyhashdummyhash");
-          loginAttempts.set(email, { count: record.count + 1, lastAttempt: now });
+          loginAttempts.set(email, { count: rec.count + 1, lastAttempt: now });
           throw new Error("Email veya şifre hatalı.");
         }
 
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!isValid) {
-          loginAttempts.set(email, { count: record.count + 1, lastAttempt: now });
+        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
+        if (!valid) {
+          loginAttempts.set(email, { count: rec.count + 1, lastAttempt: now });
           throw new Error("Email veya şifre hatalı.");
         }
 
@@ -61,14 +61,7 @@ export const authOptions: NextAuthOptions = {
           if (!credentials.code) {
             throw new Error("2FA_REQUIRED");
           }
-
-          const is2FAValid = verifyTwoFactorToken(
-            credentials.code,
-            user.twoFactorSecret || ""
-          );
-
-          if (!is2FAValid) {
-            loginAttempts.set(email, { count: record.count + 1, lastAttempt: now });
+          if (!verifyTwoFactorToken(credentials.code, user.twoFactorSecret!)) {
             throw new Error("2FA kodu hatalı.");
           }
         }
@@ -80,12 +73,10 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-          image: user.image,
         };
       },
     }),
   ],
-
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -96,14 +87,13 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.id = token.id;
+        session.user.role = token.role;
       }
       return session;
     },
   },
 };
 
-// ✔ TEK ve DOĞRU export
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
