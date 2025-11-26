@@ -1,74 +1,122 @@
-import NextAuth from "next-auth";
+// app/api/auth/[...nextauth]/route.ts
+
+import NextAuth, { AuthOptions, SessionStrategy } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyTwoFactorToken } from "@/lib/auth/2fa";
 
-const loginAttempts = new Map();
+// Basit rate limit
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const WINDOW = 15 * 60 * 1000;
 
-const authOptions = {
+export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
-  providers: [
-  CredentialsProvider({
-    name: "Credentials",
-    credentials: {
-      email: { label: "Email", type: "text" },
-      password: { label: "Password", type: "password" },
-      code: { label: "2FA Code", type: "text" }
-    },
-    async authorize(credentials) {
-      if (!credentials?.email || !credentials.password) {
-        throw new Error("Lütfen email ve şifre giriniz.");
-      }
 
+  // ❗ NextAuth v5 uyumlu
+  session: {
+    strategy: SessionStrategy.JWT,
+    maxAge: 30 * 24 * 60 * 60,
+  },
+
+  pages: {
+    signIn: "/login",
+    error: "/auth/error",
+    verifyRequest: "/auth/verify",
+  },
+
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        code: { label: "2FA Code", type: "text" },
+      },
+      async authorize(credentials: any) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Lütfen email ve şifre giriniz.");
+        }
 
         const email = credentials.email;
         const now = Date.now();
-        const record = loginAttempts.get(email) || { count: 0, last: now };
 
-        if (record.count >= MAX_ATTEMPTS && now - record.last < WINDOW) {
-          throw new Error("Çok fazla deneme! 15 dakika bekleyin.");
+        const record = loginAttempts.get(email) || {
+          count: 0,
+          lastAttempt: now,
+        };
+
+        if (
+          record.count >= MAX_ATTEMPTS &&
+          now - record.lastAttempt < RATE_LIMIT_WINDOW
+        ) {
+          throw new Error("Çok fazla deneme yaptınız. Lütfen 15 dakika bekleyin.");
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        // kullanıcı bul
+        const user = await prisma.user.findUnique({
+          where: { email },
+        });
 
         if (!user || !user.passwordHash) {
-          await bcrypt.compare("dummy", "$2a$10$dummyhashdummyhashdummyhash");
-          loginAttempts.set(email, { count: record.count + 1, last: now });
-          throw new Error("Email veya şifre yanlış.");
+          await bcrypt.compare(
+            "dummy",
+            "$2a$10$dummyhashdummyhashdummyhash"
+          );
+          loginAttempts.set(email, {
+            count: record.count + 1,
+            lastAttempt: now,
+          });
+          throw new Error("Email veya şifre hatalı.");
         }
 
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash
+        );
 
-        if (!valid) {
-          loginAttempts.set(email, { count: record.count + 1, last: now });
-          throw new Error("Email veya şifre yanlış.");
+        if (!isValid) {
+          loginAttempts.set(email, {
+            count: record.count + 1,
+            lastAttempt: now,
+          });
+          throw new Error("Email veya şifre hatalı.");
         }
 
+        // 2FA kontrolü
         if (user.twoFactorEnabled) {
           if (!credentials.code) {
             throw new Error("2FA_REQUIRED");
           }
 
-          const ok = verifyTwoFactorToken(credentials.code, user.twoFactorSecret || "");
-          if (!ok) throw new Error("2FA kodu yanlış.");
+          const is2FAValid = verifyTwoFactorToken(
+            credentials.code,
+            user.twoFactorSecret || ""
+          );
+
+          if (!is2FAValid) {
+            loginAttempts.set(email, {
+              count: record.count + 1,
+              lastAttempt: now,
+            });
+            throw new Error("2FA kodu hatalı.");
+          }
         }
 
         loginAttempts.delete(email);
 
         return {
           id: user.id,
-          role: user.role,
           email: user.email,
           name: user.name,
+          role: user.role,
         };
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -77,14 +125,17 @@ const authOptions = {
       }
       return token;
     },
+
     async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.role = token.role;
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+      }
       return session;
     },
   },
 };
 
+// ❗ NEXTAUTH v5 doğru export
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };
