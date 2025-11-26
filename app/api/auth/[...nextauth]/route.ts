@@ -1,4 +1,3 @@
-// /app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -6,45 +5,27 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyTwoFactorToken } from "@/lib/auth/2fa";
 
-// Basit in-memory rate limit
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
+const loginAttempts = new Map();
 const MAX_ATTEMPTS = 5;
+const WINDOW = 15 * 60 * 1000;
 
-export const authOptions = {
+const authOptions = {
   adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-  },
-  pages: {
-    signIn: "/login",
-    error: "/auth/error",
-    verifyRequest: "/auth/verify",
-  },
+  session: { strategy: "jwt" },
   providers: [
     CredentialsProvider({
       name: "Credentials",
-      credentials: {
-        email: {},
-        password: {},
-        code: {},
-      },
+      credentials: {},
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email || !credentials.password) {
           throw new Error("Lütfen email ve şifre giriniz.");
         }
 
         const email = credentials.email;
         const now = Date.now();
+        const record = loginAttempts.get(email) || { count: 0, last: now };
 
-        const record =
-          loginAttempts.get(email) || { count: 0, lastAttempt: now };
-
-        if (
-          record.count >= MAX_ATTEMPTS &&
-          now - record.lastAttempt < RATE_LIMIT_WINDOW
-        ) {
+        if (record.count >= MAX_ATTEMPTS && now - record.last < WINDOW) {
           throw new Error("Çok fazla deneme! 15 dakika bekleyin.");
         }
 
@@ -52,49 +33,33 @@ export const authOptions = {
 
         if (!user || !user.passwordHash) {
           await bcrypt.compare("dummy", "$2a$10$dummyhashdummyhashdummyhash");
-          loginAttempts.set(email, {
-            count: record.count + 1,
-            lastAttempt: now,
-          });
+          loginAttempts.set(email, { count: record.count + 1, last: now });
           throw new Error("Email veya şifre yanlış.");
         }
 
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash
-        );
+        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
 
-        if (!isValid) {
-          loginAttempts.set(email, {
-            count: record.count + 1,
-            lastAttempt: now,
-          });
+        if (!valid) {
+          loginAttempts.set(email, { count: record.count + 1, last: now });
           throw new Error("Email veya şifre yanlış.");
         }
 
-        // 2FA
         if (user.twoFactorEnabled) {
           if (!credentials.code) {
             throw new Error("2FA_REQUIRED");
           }
 
-          const is2FAValid = verifyTwoFactorToken(
-            credentials.code,
-            user.twoFactorSecret || ""
-          );
-
-          if (!is2FAValid) {
-            throw new Error("2FA kodu hatalı.");
-          }
+          const ok = verifyTwoFactorToken(credentials.code, user.twoFactorSecret || "");
+          if (!ok) throw new Error("2FA kodu yanlış.");
         }
 
         loginAttempts.delete(email);
 
         return {
           id: user.id,
+          role: user.role,
           email: user.email,
           name: user.name,
-          role: user.role,
         };
       },
     }),
@@ -108,15 +73,13 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-      }
+      session.user.id = token.id;
+      session.user.role = token.role;
       return session;
     },
   },
 };
 
-// NextAuth handler — SADECE BUNLAR EXPORT EDİLİR!
 const handler = NextAuth(authOptions);
+
 export { handler as GET, handler as POST };
