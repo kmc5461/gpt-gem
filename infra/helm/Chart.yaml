@@ -1,0 +1,19 @@
+# infra/helm/Chart.yaml
+apiVersion: v2
+name: archetype-enterprise
+description: A Helm chart for Archetype E-Commerce Enterprise System (Kubernetes)
+type: application
+version: 0.1.0
+appVersion: "2.0.0"
+maintainers:
+  - name: DevOps Team
+    email: devops@archetype.com
+dependencies:
+  - name: redis
+    version: 17.3.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: postgresql
+    version: 12.1.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
