@@ -2,16 +2,20 @@
 
 import { Locale, i18n } from "@/lib/i18n";
 
-/**
- * Sunucu tarafında dictionary (çeviri dosyalarını) dinamik import eder
- */
+// JSON dictionary'leri statik import — Vercel için en stabil yöntem
+import tr from "@/dictionaries/tr.json";
+import en from "@/dictionaries/en.json";
+
+const dictionaries: Record<Locale, any> = {
+  tr: tr,
+  en: en,
+};
+
 export async function getDictionary(locale: Locale) {
-  try {
-    const dict = await import(`@/dictionaries/${locale}.json`);
-    return dict.default;
-  } catch (error) {
-    console.error("Dictionary load error:", error);
-    const fallback = await import(`@/dictionaries/${i18n.defaultLocale}.json`);
-    return fallback.default;
+  // geçersiz dil gelirse fallback
+  if (!i18n.locales.includes(locale)) {
+    return dictionaries[i18n.defaultLocale];
   }
+
+  return dictionaries[locale];
 }
