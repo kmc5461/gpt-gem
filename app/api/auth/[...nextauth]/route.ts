@@ -13,13 +13,18 @@ const authOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {},
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          throw new Error("Lütfen email ve şifre giriniz.");
-        }
+  CredentialsProvider({
+    name: "Credentials",
+    credentials: {
+      email: { label: "Email", type: "text" },
+      password: { label: "Password", type: "password" },
+      code: { label: "2FA Code", type: "text" }
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials.password) {
+        throw new Error("Lütfen email ve şifre giriniz.");
+      }
+
 
         const email = credentials.email;
         const now = Date.now();
