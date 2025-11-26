@@ -114,3 +114,5 @@ const authOptions: NextAuthOptions = {
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+export { authOptions };
