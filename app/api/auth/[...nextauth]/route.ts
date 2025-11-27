@@ -6,9 +6,6 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// ❌ authOptions EXPORT YOK
-// ❌ Fazladan export YOK
-
 const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
 
@@ -80,5 +77,4 @@ const handler = NextAuth({
   },
 });
 
-// ✔ TEK export formatı
 export { handler as GET, handler as POST };
