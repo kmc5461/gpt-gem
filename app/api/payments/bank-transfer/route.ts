@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: {
-        status: 'AWAITING_PAYMENT',
+        status: OrderStatus.PENDING,
         paymentStatus: 'pending_manual_approval', // Admin onayı bekler
       }
     });
