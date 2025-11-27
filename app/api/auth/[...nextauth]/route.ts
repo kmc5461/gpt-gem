@@ -1,22 +1,19 @@
 // app/api/auth/[...nextauth]/route.ts
 
-import NextAuth, { AuthOptions, SessionStrategy } from "next-auth";
+import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// LOGIN RATE-LIMIT
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
+// ❌ authOptions EXPORT YOK
+// ❌ Fazladan export YOK
 
-// ❗ Dikkat: Export ETMİYORUZ!
-const authOptions: AuthOptions = {
+const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
 
   session: {
-    strategy: SessionStrategy.JWT,
+    strategy: "jwt",
   },
 
   pages: {
@@ -31,6 +28,7 @@ const authOptions: AuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
+
       async authorize(credentials: any) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Lütfen email ve şifre giriniz.");
@@ -80,8 +78,7 @@ const authOptions: AuthOptions = {
       return session;
     },
   },
-};
+});
 
-// ❗ Tek doğru export
-const handler = NextAuth(authOptions);
+// ✔ TEK export formatı
 export { handler as GET, handler as POST };
