@@ -1,35 +1,34 @@
 // app/api/payments/bank-transfer/route.ts
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { OrderStatus } from "@prisma/client"; // ✅ EKLENDİ
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { orderId } = body;
+    const { orderId } = await req.json();
 
-    if (!orderId) return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
+    if (!orderId) {
+      return NextResponse.json(
+        { error: "Order ID gerekli." },
+        { status: 400 }
+      );
+    }
 
-    // Havale/EFT ile ödemede siparişi beklemeye alıyoruz
-    const updatedOrder = await prisma.order.update({
+    await prisma.order.update({
       where: { id: orderId },
       data: {
-        status: OrderStatus.PENDING,
-        paymentStatus: 'pending_manual_approval', // Admin onayı bekler
-      }
+        status: OrderStatus.PENDING, // ✔ ENUM doğru
+        paymentStatus: "pending_manual_approval",
+      },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Sipariş alındı. Ödeme onayı bekleniyor.',
-      bankDetails: {
-        bankName: 'X Bankası',
-        iban: 'TR00 0000 0000 0000 0000 0000 00',
-        recipient: 'Archetype Ltd. Şti.',
-        reference: updatedOrder.orderNumber // Havale açıklamasında kullanılacak
-      }
+      message: "Banka havalesi için sipariş güncellendi.",
     });
-
   } catch (error: any) {
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
