@@ -1,14 +1,15 @@
 // app/api/payments/stripe/route.ts
+
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/payments/stripe';
-import { prisma } from '@/lib/prisma'; // Projenizdeki prisma client
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    // Auth kontrolü (opsiyonel, misafir ödeme varsa kaldırılabilir)
+    // ❗ Parametre YOK!
+    const session = await getServerSession();
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -20,36 +21,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
     }
 
-    // Siparişi bul
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true } // Gerekirse detaylar
+      include: { items: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Payment Intent oluştur
+    // Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Number(order.totalAmount) * 100, // Stripe kuruş/cent bazlı çalışır
-      currency: 'try', // veya order.currency
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      amount: Number(order.totalAmount) * 100,
+      currency: 'try',
+      automatic_payment_methods: { enabled: true },
       metadata: {
         orderId: order.id,
         userId: session.user?.id || 'guest',
       },
     });
 
-    // Siparişe Payment Intent ID'yi kaydet
+    // DB update
     await prisma.order.update({
       where: { id: orderId },
       data: {
         paymentIntentId: paymentIntent.id,
-        paymentStatus: 'pending'
-      }
+        paymentStatus: 'pending',
+      },
     });
 
     return NextResponse.json({
