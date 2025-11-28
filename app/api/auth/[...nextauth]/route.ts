@@ -1,19 +1,14 @@
-import NextAuth, { AuthOptions, SessionStrategy } from "next-auth";
+import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";   // ✔ DOĞRU
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// LOGIN RATE-LIMIT
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-
-const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma), // ✔ ÇALIŞACAK
+const handler = NextAuth({
+  adapter: PrismaAdapter(prisma),
 
   session: {
-    strategy: SessionStrategy.JWT,
+    strategy: "jwt",
   },
 
   pages: {
@@ -30,7 +25,7 @@ const authOptions: AuthOptions = {
       },
       async authorize(credentials: any) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Lütfen email ve şifre giriniz.");
+          throw new Error("Email ve şifre gerekli");
         }
 
         const user = await prisma.user.findUnique({
@@ -38,7 +33,7 @@ const authOptions: AuthOptions = {
         });
 
         if (!user || !user.passwordHash) {
-          throw new Error("Email veya şifre hatalı.");
+          throw new Error("Email veya şifre hatalı");
         }
 
         const isValid = await bcrypt.compare(
@@ -46,9 +41,7 @@ const authOptions: AuthOptions = {
           user.passwordHash
         );
 
-        if (!isValid) {
-          throw new Error("Email veya şifre hatalı.");
-        }
+        if (!isValid) throw new Error("Email veya şifre hatalı");
 
         return {
           id: user.id,
@@ -77,8 +70,6 @@ const authOptions: AuthOptions = {
       return session;
     },
   },
-};
+});
 
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
-export { authOptions }; // 🔥 BUNU DA EKLE
+export { handler as GET, handler as POST }; // ✔ SADECE BUNLAR
