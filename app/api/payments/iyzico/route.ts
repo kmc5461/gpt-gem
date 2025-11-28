@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import iyzico from "@/lib/payments/iyzico"; // kendi iyzico SDK dosyan
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { getServerSession } from "next-auth";
+
+const session = await getServerSession();
 
 export async function POST(req: Request) {
   try {
