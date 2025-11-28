@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     // Iyzico başlatma
     const result = await iyzico.startPaymentProcess({
-      price: order.totalAmount,
+      price: Number(order.total),
       orderId: order.id,
       // ... diğer iyzico parametreleri
     });
