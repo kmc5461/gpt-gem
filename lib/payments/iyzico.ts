@@ -23,4 +23,6 @@ export const iyzico = {
       token: 'mock_iyzico_token_' + Date.now()
     };
   }
+
 };
+export default iyzico;
