@@ -119,27 +119,28 @@ model Stock {
 //
 
 model Order {
-  id                String       @id @default(uuid())
-  userId            String?
-  user              User?        @relation(fields: [userId], references: [id])
-  status            OrderStatus  @default(PENDING)
-  total             Decimal      @db.Decimal(10, 2)
-  currency          String       @default("USD")
+  id              String      @id @default(uuid())
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+  status          OrderStatus @default(PENDING)
+  paymentStatus   String      @default("pending")  // ✅ EKLENDİ
+  total           Decimal     @db.Decimal(10, 2)
+  currency        String      @default("USD")
 
   shippingAddressId String?
   billingAddressId  String?
-  shippingAddress   Address?     @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
-  billingAddress    Address?     @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  shippingAddress   Address?  @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress    Address?  @relation("BillingAddress", fields: [billingAddressId], references: [id])
 
-  paymentId         String?      @unique
-  payment           Payment?     @relation(fields: [paymentId], references: [id])
-  fraudScore        FraudScore?
+  paymentId       String?     @unique
+  payment         Payment?    @relation(fields: [paymentId], references: [id])
+  fraudScore      FraudScore?
 
-  items             OrderItem[]
-  rmaRequests       RMARequest[]
-
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  items           OrderItem[]
+  rmaRequests     RMARequest[]
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model OrderItem {
